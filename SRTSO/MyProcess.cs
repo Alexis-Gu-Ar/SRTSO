@@ -17,5 +17,6 @@
 
         public int PendingCpuExecutionTime { get => pendingExecutionTime; }
         public bool HasFinished { get => pendingExecutionTime <= 0; }
+        public int ExecutedTime { get => TOTAL_CPU_EXECUTION_TIME - pendingExecutionTime; }
     }
 }

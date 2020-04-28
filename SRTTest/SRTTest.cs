@@ -33,7 +33,7 @@ namespace SRTTest
         private void AddAProcessWithCpuExecutionOf(params int[] executionTimes)
         {
             foreach (int executionTime in executionTimes)
-                scheduler.AddProcesses(executionTime);
+                scheduler.AddProcess(executionTime);
         }
 
         private void AddRandomProcesses(int total)
@@ -212,5 +212,7 @@ namespace SRTTest
             Assert.AreNotEqual(prevProcess, scheduler.RunningProcess);
             Assert.IsNotNull(scheduler.RunningProcess);
         }
+
+
     }
 }

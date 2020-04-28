@@ -31,7 +31,7 @@ namespace SRTSO
         public void AddRandomProcesses(int total)
         {
             for (int i = 0; i < total; i++)
-                newProcesses.Add(new MyProcess(random.Next(30, 300)*SLEEP_INTERVAL));
+                AddProcess(random.Next(30, 300)*SLEEP_INTERVAL);
             Notify();
         }
 
@@ -62,7 +62,7 @@ namespace SRTSO
 
         private MyProcess PopNewShortestProcess()
         {
-            if (newProcesses.Count == 0) return null; 
+            if (newProcesses.Count == 0) return null;
             MyProcess shortest = new MyProcess(int.MaxValue);
             foreach (MyProcess process in newProcesses)
                 if (shortest.TOTAL_CPU_EXECUTION_TIME > process.TOTAL_CPU_EXECUTION_TIME)
@@ -72,7 +72,7 @@ namespace SRTSO
             return shortest;
         }
 
-        public void AddProcesses(int executionTime)
+        public void AddProcess(int executionTime)
         {
             MyProcess process = new MyProcess(executionTime);
 
