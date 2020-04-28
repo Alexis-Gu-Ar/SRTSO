@@ -39,6 +39,7 @@ namespace SRTSO
         public double CPUTotalTime { get => stopwatch.ElapsedMilliseconds; }
         public int BussyTime { get => bussyTime; }
         public double IDLETime { get => CPUTotalTime - BussyTime; }
+        public bool HaveNewProcesses { get => newProcesses.Count > 0; }
 
         public void AddRandomProcesses(int total)
         {
@@ -60,7 +61,7 @@ namespace SRTSO
         private void Setup()
         {
             if (!HasRunningProcess)
-                runningProcess = PopNewShortestProcess();
+                SetRunningProcess(PopNewShortestProcess());
             Notify();
         }
 
@@ -72,16 +73,24 @@ namespace SRTSO
                 runningProcess.decreasePenddingExecutionTime(SLEEP_INTERVAL);
                 bussyTime += SLEEP_INTERVAL;
                 if (runningProcess.HasFinished)
-                    runningProcess = PopNewShortestProcess();
+                    SetRunningProcess(PopNewShortestProcess());
+
                 Notify();
             }
             stopwatch.Stop();
         }
 
+        private void SetRunningProcess(MyProcess process)
+        {
+            if (process != null && !process.HasBeenInCPU)
+                process.FirstTimeInCPU = stopwatch.ElapsedMilliseconds;
+            runningProcess = process;
+        }
+
         private MyProcess PopNewShortestProcess()
         {
             if (newProcesses.Count == 0) return null;
-            MyProcess shortest = new MyProcess(int.MaxValue);
+            MyProcess shortest = new MyProcess(int.MaxValue, -1);
             foreach (MyProcess process in newProcesses)
                 if (shortest.TOTAL_CPU_EXECUTION_TIME > process.TOTAL_CPU_EXECUTION_TIME)
                     shortest = process;
@@ -92,14 +101,15 @@ namespace SRTSO
 
         public void AddProcess(int executionTime)
         {
-            MyProcess process = new MyProcess(executionTime);
+            MyProcess process = new MyProcess(executionTime, stopwatch.ElapsedMilliseconds);
 
             if(HasRunningProcess && process.PendingCpuExecutionTime < runningProcess.PendingCpuExecutionTime)
             {
                 newProcesses.Add(runningProcess);
+                process.FirstTimeInCPU = stopwatch.ElapsedMilliseconds;
                 runningProcess = process;
             }
-            else newProcesses.Add(new MyProcess(executionTime));
+            else newProcesses.Add(process);
 
             Notify();
         }

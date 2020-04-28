@@ -250,5 +250,20 @@ namespace SRTTest
         {
             Assert.AreEqual(0, scheduler.BussyTime);
         }
+
+        [TestMethod]
+        public void ResponseTimeOfFirstProcessShouldBeZero()
+        {
+            StartWithRandomProcesses(1);
+            Assert.AreEqual(0, scheduler.RunningProcess.ResponseTime);
+        }
+
+        [TestMethod]
+        public void ResponseTimeOfSecondProcessShoudNotBeZero()
+        {
+            StartWithRandomProcesses(2);
+            SleepUntilCurrentProcessFinishes();
+            Assert.AreNotEqual(0, scheduler.RunningProcess.ResponseTime);
+        }
     }
 }
