@@ -70,8 +70,20 @@ namespace SRTSO
             }
             UpdatePendingExecutionSeries(yPendingValues, seriesPenddingExecution);
             UpdatePendingExecutionSeries(yExecutedValues, seriesExecuted);
+            UpdateLabel(labelCPUTime, scheduler.CPUTotalTime.ToString());
+            UpdateLabel(labelCPUBusy, scheduler.BussyTime.ToString());
+            UpdateLabel(labelCPUIDLE, scheduler.IDLETime.ToString());
         }
-
+        private delegate void SafeUpdateLabel(Label label, String text);
+        private void UpdateLabel(Label label, string text)
+        {
+            if (label.InvokeRequired)
+            {
+                var d = new SafeUpdateLabel(UpdateLabel);
+                label.Invoke(d, new object[] { label, text });
+            }
+            else label.Text = text;
+        }
 
         private void UpdatePendingExecutionSeries(List<int> yValues, Series series)
         {
@@ -92,6 +104,11 @@ namespace SRTSO
         private void buttonAddProcesses_Click(object sender, EventArgs e)
         {
             scheduler.AddRandomProcesses(int.Parse(textBoxTotalNewProcess.Text));
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
         }
 
         private void buttonAddProcess_Click(object sender, EventArgs e)

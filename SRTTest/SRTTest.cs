@@ -36,6 +36,12 @@ namespace SRTTest
                 scheduler.AddProcess(executionTime);
         }
 
+        private void StartWithProcessWithCpuExecutionOf(params int[] executionTimes)
+        {
+            AddAProcessWithCpuExecutionOf(executionTimes);
+            scheduler.Start();
+        }
+
         private void AddRandomProcesses(int total)
         {
             for (int i = 0; i < total; i++)
@@ -142,8 +148,7 @@ namespace SRTTest
         [TestMethod]
         public void WhenRunningANewProcessItShouldHaveTheSmallestCpuExecutionAndOrBeTheLeftMostProcess()
         {
-            AddAProcessWithCpuExecutionOf(800, 900, 800);
-            scheduler.Start();
+            StartWithProcessWithCpuExecutionOf(800, 900, 800);
             List<MyProcess> newProcesses = scheduler.NewProcesses;
             Assert.AreEqual(900, newProcesses[0].TOTAL_CPU_EXECUTION_TIME);
             Assert.AreEqual(800, newProcesses[1].TOTAL_CPU_EXECUTION_TIME);
@@ -192,8 +197,7 @@ namespace SRTTest
         [TestMethod]
         public void TheNextExecutingProcessShouldBeTheShortest()
         {
-            AddAProcessWithCpuExecutionOf(900, 800, 700);
-            scheduler.Start();
+            StartWithProcessWithCpuExecutionOf(900, 800, 700);
             SleepUntilCurrentProcessFinishes();
             Assert.AreEqual(800, scheduler.RunningProcess.TOTAL_CPU_EXECUTION_TIME);
         }
@@ -201,8 +205,7 @@ namespace SRTTest
         [TestMethod]
         public void ShouldSwapTheRunningProcessWhenANewProcessWithAShorterTimeIsAdded()
         {
-            AddAProcessWithCpuExecutionOf(100 * SchedulerSRT.SLEEP_INTERVAL);
-            scheduler.Start();
+            StartWithProcessWithCpuExecutionOf(100 * SchedulerSRT.SLEEP_INTERVAL);
             MyProcess prevProcess = scheduler.RunningProcess;
             AddAProcessWithCpuExecutionOf(70 * SchedulerSRT.SLEEP_INTERVAL);
             Assert.AreNotEqual(prevProcess, scheduler.RunningProcess);
@@ -213,6 +216,39 @@ namespace SRTTest
             Assert.IsNotNull(scheduler.RunningProcess);
         }
 
+        [TestMethod]
+        public void StopwatchShouldNotBeRunninIfTheSchedulerIsNotRunning()
+        {
+            Assert.IsFalse(scheduler.IsStopwatchRunning);
+        }
 
+        [TestMethod]
+        public void StopwatchShouldBeRunningIfTheSchedulerIsRunning()
+        {
+            StartWithRandomProcesses(3);
+            Assert.IsTrue(scheduler.IsStopwatchRunning);
+        }
+
+        [TestMethod]
+        public void StopWatchShouldNotBeRunninWhenTheSchedulerFinish()
+        {
+            StartWithProcessWithCpuExecutionOf(720);
+            Thread.Sleep(1500);
+            Assert.IsFalse(scheduler.IsStopwatchRunning);
+        }
+
+        [TestMethod]
+        public void BussyTimeShouldBeEqualToTheSumOfTheExecutionTimeOfTheProcess()
+        {
+            StartWithProcessWithCpuExecutionOf(720, 720, 720);
+            Thread.Sleep(3000);
+            Assert.AreEqual(720 * 3, scheduler.BussyTime);
+        }
+
+        [TestMethod]
+        public void BussyTimeShoulBeZeroIfSchedulerHasNotStarted()
+        {
+            Assert.AreEqual(0, scheduler.BussyTime);
+        }
     }
 }

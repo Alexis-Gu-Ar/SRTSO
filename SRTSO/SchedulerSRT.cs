@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -14,9 +15,15 @@ namespace SRTSO
         MyProcess runningProcess;
         private List<IObserver<SchedulerSRT>> observers;
         public const int SLEEP_INTERVAL = 30;
+        private Stopwatch stopwatch;
+        private Thread startThread;
+        private int bussyTime;
 
         public SchedulerSRT()
         {
+            bussyTime = 0;
+            startThread = new Thread(Run);
+            stopwatch = new Stopwatch();
             newProcesses = new List<MyProcess>();
             runningProcess = null;
             observers = new List<IObserver<SchedulerSRT>>();
@@ -27,6 +34,11 @@ namespace SRTSO
         public int TotalNewProcesses { get => newProcesses.Count; }
         public MyProcess RunningProcess { get => runningProcess; }
         public List<MyProcess> NewProcesses { get => newProcesses; }
+        public bool IsStopwatchRunning { get => stopwatch.IsRunning; }
+
+        public double CPUTotalTime { get => stopwatch.ElapsedMilliseconds; }
+        public int BussyTime { get => bussyTime; }
+        public double IDLETime { get => CPUTotalTime - BussyTime; }
 
         public void AddRandomProcesses(int total)
         {
@@ -38,7 +50,11 @@ namespace SRTSO
         public void Start()
         {
             Setup();
-            new Thread(Run).Start();
+            if(!startThread.IsAlive)
+                startThread = new Thread(Run);
+
+            stopwatch.Start();
+            startThread.Start();
         }
 
         private void Setup()
@@ -54,10 +70,12 @@ namespace SRTSO
             {
                 Thread.Sleep(SLEEP_INTERVAL);
                 runningProcess.decreasePenddingExecutionTime(SLEEP_INTERVAL);
+                bussyTime += SLEEP_INTERVAL;
                 if (runningProcess.HasFinished)
                     runningProcess = PopNewShortestProcess();
                 Notify();
             }
+            stopwatch.Stop();
         }
 
         private MyProcess PopNewShortestProcess()
