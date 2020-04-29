@@ -3,6 +3,7 @@ using SRTSO;
 using System.Threading;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 
 namespace SRTTest
 {
@@ -29,6 +30,21 @@ namespace SRTTest
             MyProcess process = scheduler.RunningProcess;
             while (!process.HasFinished)
                 Thread.Sleep(process.PendingCpuExecutionTime + TIME_PAD);
+        }
+
+        private void WaithToFinish()
+        {
+            while (scheduler.HasRunningProcess)
+                SleepUntilCurrentProcessFinishes();
+        }
+
+        private MyProcess WaitForProcessWithExecutionOfToFinish(int executionTime)
+        {
+            MyProcess process;
+            StartWithProcessWithCpuExecutionOf(executionTime);
+            process = scheduler.RunningProcess;
+            SleepUntilCurrentProcessFinishes();
+            return process;
         }
 
         private void AddAProcessWithCpuExecutionOf(params int[] executionTimes)
@@ -294,7 +310,7 @@ namespace SRTTest
         {
             StartWithProcessWithCpuExecutionOf(720, 1200);
             SleepUntilCurrentProcessFinishes();
-            int prevMaxResponse = scheduler.MaxResponseTime;
+            double prevMaxResponse = scheduler.MaxResponseTime;
             AddAProcessWithCpuExecutionOf(720);
             Assert.IsTrue(scheduler.MaxResponseTime >= prevMaxResponse);
         }
@@ -316,8 +332,102 @@ namespace SRTTest
             for (int i = 0; i < 3; i++)
                 SleepUntilCurrentProcessFinishes();
 
-            double mean = (p1.ResponseTime + p2.ResponseTime + p3.ResponseTime) / 3;
+            double mean = (p1.ResponseTime + p2.ResponseTime + p3.ResponseTime) / 3.0;
             Assert.AreEqual(mean, scheduler.MeanResponseTime);
         }
+
+        [TestMethod]
+        [ExpectedException(typeof(MyProcess.ProcessAlreadyFinished))]
+        public void CanNotDecreaseThePendingExecutionOfAFinishedProcess()
+        {
+            MyProcess process = WaitForProcessWithExecutionOfToFinish(720);
+            process.decreasePenddingExecutionTime(10);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(MyProcess.ProcessHasNotExited))]
+        public void CanNotGetTheExitTimeOfAnUnfinishedProcess()
+        {
+            StartWithProcessWithCpuExecutionOf(720);
+            _ = scheduler.RunningProcess.ExitTime;
+        }
+
+        [TestMethod]
+        public void AJustFinishedProcessShouldHaveAExitCloseToTheTimeOfTheScheduler()
+        {
+            double delta = 400;
+            MyProcess process = WaitForProcessWithExecutionOfToFinish(720);
+            Assert.IsTrue(scheduler.CPUTotalTime - delta <= process.ExitTime 
+                && process.ExitTime <= scheduler.CPUTotalTime);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(MyProcess.ProcessHasNotExited))]
+        public void UnfinishedProcessCanNotHaveTurnAroundTime()
+        {
+            StartWithRandomProcesses(1);
+            _ = scheduler.RunningProcess.TurnaroundTime;
+        }
+
+        [TestMethod]
+        public void TheFirstProcessShouldHaveEqualTurnaroundAndExitTimeEqual()
+        {
+            MyProcess process = WaitForProcessWithExecutionOfToFinish(720);
+            Assert.AreEqual(process.TurnaroundTime, process.ExitTime);
+        }
+
+        [TestMethod]
+        public void TheTurnAroundTimeOfANewlyAddedSmallerProcessShouldBeSmaller()
+        {
+            MyProcess p1 = WaitForProcessWithExecutionOfToFinish(2100);
+            MyProcess p2 = WaitForProcessWithExecutionOfToFinish(720);
+            Assert.IsTrue(p2.TurnaroundTime < p1.TurnaroundTime);
+        }
+
+        [TestMethod]
+        public void ItShouldHaveTurnaroundMinEqualToInfiniteAtBegining()
+        {
+            Assert.AreEqual(double.MaxValue, scheduler.MinTurnaround);
+        }
+
+        [TestMethod]
+        public void ItShouldHaveTurnaroundMaxEqualToZeroAtBegining()
+        {
+            Assert.AreEqual(0, scheduler.MaxTurnaround);
+        }
+
+        [TestMethod]
+        public void ItShouldHaveTheSameMinAndMaxTurnaroundTimeWhenFinishingOneProcess()
+        {
+            WaitForProcessWithExecutionOfToFinish(720);
+            Assert.AreEqual(scheduler.MinTurnaround, scheduler.MaxTurnaround);
+        }
+
+        [TestMethod]
+        public void ItShouldHaveDifferentMinAndMaxTurnaroundTimeWhenDoingTwoDifferentProcesses()
+        {
+            WaitForProcessWithExecutionOfToFinish(2100);
+            WaitForProcessWithExecutionOfToFinish(720);
+            Assert.AreNotEqual(scheduler.MinTurnaround, scheduler.MaxTurnaround);
+        }
+
+        [TestMethod]
+        public void ShouldHaveA3TurnAroundTimeAfterItFinished()
+        {
+            StartWithRandomProcesses(3);
+            WaithToFinish();
+            Assert.AreEqual(3, scheduler.TotalResponseTimes);
+        }
+
+        [TestMethod]
+        public void ShouldBeCapableOfMeasuringTheMeanOfTurnaround()
+        {
+            List<double> times = new List<double>();
+            for (int i = 0; i < 3; i++)
+                times.Add(WaitForProcessWithExecutionOfToFinish(720).TurnaroundTime);
+
+            Assert.AreEqual(times.Sum() / times.Count, scheduler.MeanTurnaround);
+        }
+
     }
 }

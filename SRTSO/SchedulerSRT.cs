@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -15,16 +16,22 @@ namespace SRTSO
         MyProcess runningProcess;
         private List<IObserver<SchedulerSRT>> observers;
         public const int SLEEP_INTERVAL = 30;
+        private double minTurnAround;
+        private double maxTurnAround;
         private Stopwatch stopwatch;
         private Thread startThread;
         private int bussyTime;
-        private int maxResponseTime;
-        private List<int> responseTimes;
+        private double maxResponseTime;
+        private List<double> responseTimes;
+        private List<double> turnaroundTimes;
 
         public SchedulerSRT()
         {
             bussyTime = 0;
-            responseTimes = new List<int>();
+            maxTurnAround = 0;
+            minTurnAround = double.MaxValue;
+            responseTimes = new List<double>();
+            turnaroundTimes = new List<double>();
             startThread = new Thread(Run);
             stopwatch = new Stopwatch();
             newProcesses = new List<MyProcess>();
@@ -44,10 +51,11 @@ namespace SRTSO
         public double IDLETime { get => CPUTotalTime - BussyTime; }
         public bool HaveNewProcesses { get => newProcesses.Count > 0; }
         public int MinResponseTime { get => 0; }
-        public int MaxResponseTime { get => maxResponseTime; }
+        public double MaxResponseTime { get => maxResponseTime; }
         public double MeanResponseTime { get => responseTimes.Sum() / responseTimes.Count; }
 
-        public double StandardDeviation
+
+        public double ResponseTimeStandardDeviation
         {
             get
             {
@@ -61,6 +69,12 @@ namespace SRTSO
             }
         }
         public bool HasResponseTimes { get => responseTimes.Count > 0; }
+        public double MinTurnaround { get => minTurnAround; }
+        public double MaxTurnaround { get => maxTurnAround; }
+        public bool HasTurnaroundTimes { get => turnaroundTimes.Count > 0; }
+        public int TotalResponseTimes { get => turnaroundTimes.Count; }
+        public double MeanTurnaround { get => turnaroundTimes.Sum()/turnaroundTimes.Count; }
+        public double TurnAroundStandardDeviation { get => calculateStandardDeviation(turnaroundTimes); }
 
         public void AddRandomProcesses(int total)
         {
@@ -91,10 +105,13 @@ namespace SRTSO
             while (HasRunningProcess)
             {
                 Thread.Sleep(SLEEP_INTERVAL);
-                runningProcess.decreasePenddingExecutionTime(SLEEP_INTERVAL);
+                runningProcess.decreasePenddingExecutionTime(SLEEP_INTERVAL, stopwatch.ElapsedMilliseconds);
                 bussyTime += SLEEP_INTERVAL;
                 if (runningProcess.HasFinished)
+                {
+                    turnaroundTimes.Add(runningProcess.TurnaroundTime);
                     SetRunningProcess(PopNewShortestProcess());
+                }
 
                 Notify();
             }
@@ -103,6 +120,7 @@ namespace SRTSO
 
         private void SetRunningProcess(MyProcess process)
         {
+            UpdateTurnaround();
             runningProcess = process;
             if (runningProcess != null && !runningProcess.HasBeenInCPU)
             {
@@ -112,6 +130,15 @@ namespace SRTSO
             UpdateMaxResponseTime();
         }
 
+        private void UpdateTurnaround()
+        {
+            if(runningProcess != null && runningProcess.HasFinished)
+            {
+                double time = runningProcess.TurnaroundTime;
+                minTurnAround = time < minTurnAround ? time : minTurnAround;
+                maxTurnAround = time > maxTurnAround ? time : maxTurnAround;
+            }
+        }
 
         private void UpdateMaxResponseTime()
         {
@@ -178,5 +205,14 @@ namespace SRTSO
                 observer.OnNext(this);
         }
 
+        private static double calculateStandardDeviation(List<double> values)
+        {
+            double mean = values.Sum() / values.Count();
+            double standardDeviation = 0;
+            foreach (double x in values)
+                standardDeviation += Math.Pow(x - mean, 2);
+            standardDeviation /= values.Count;
+            return Math.Sqrt(standardDeviation);
+        }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.Serialization;
+using System.Windows.Forms;
 using System.Windows.Markup;
 
 namespace SRTSO
@@ -10,23 +11,32 @@ namespace SRTSO
         private int pendingExecutionTime;
         private readonly double arrivalTime;
         private double? firstTimeInCpu;
+        private double? exitTime;
 
         public MyProcess(int cpuExecutionTime, double arrivalTime)
         {
+            exitTime = null;
             firstTimeInCpu = null;
             pendingExecutionTime = TOTAL_CPU_EXECUTION_TIME = cpuExecutionTime;
             this.arrivalTime = arrivalTime;
         }
 
-        public void decreasePenddingExecutionTime(int miliseconds)
+        public void decreasePenddingExecutionTime(int miliseconds, double? currentTime = null)
         {
+            if (HasFinished) throw new ProcessAlreadyFinished();
             pendingExecutionTime -= miliseconds;
+            if (HasFinished)
+            {
+                if (currentTime == null)
+                    throw new ArgumentException("currentTime not provided");
+                exitTime = currentTime;
+            }
         }
 
         public int PendingCpuExecutionTime { get => pendingExecutionTime; }
         public bool HasFinished { get => pendingExecutionTime <= 0; }
         public int ExecutedTime { get => TOTAL_CPU_EXECUTION_TIME - pendingExecutionTime; }
-        public int ResponseTime { get => (int)(firstTimeInCpu - arrivalTime); }
+        public double ResponseTime { get => FirstTimeInCPU - arrivalTime; }
         public bool HasBeenInCPU { get => firstTimeInCpu != null; }
         public double FirstTimeInCPU
         {
@@ -41,6 +51,23 @@ namespace SRTSO
                 if (!HasBeenInCPU) throw new FirstTimeInCPUIsNotSet();
                 return firstTimeInCpu.Value;
             }
+        }
+
+        public double ExitTime 
+        { 
+            get {
+                if (!HasFinished)
+                    throw new ProcessHasNotExited();
+                return exitTime.Value;
+            } 
+        }
+
+        public double TurnaroundTime { 
+            get
+            {
+                if (!HasFinished) throw new ProcessHasNotExited();
+                return ExitTime - arrivalTime;
+            } 
         }
 
         [Serializable]
@@ -79,6 +106,46 @@ namespace SRTSO
             }
 
             protected FirstTimeInCPUIsNotSet(SerializationInfo info, StreamingContext context) : base(info, context)
+            {
+            }
+        }
+
+        [Serializable]
+        public class ProcessAlreadyFinished : Exception
+        {
+            public ProcessAlreadyFinished()
+            {
+            }
+
+            public ProcessAlreadyFinished(string message) : base(message)
+            {
+            }
+
+            public ProcessAlreadyFinished(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+
+            protected ProcessAlreadyFinished(SerializationInfo info, StreamingContext context) : base(info, context)
+            {
+            }
+        }
+
+        [Serializable]
+        public class ProcessHasNotExited : Exception
+        {
+            public ProcessHasNotExited()
+            {
+            }
+
+            public ProcessHasNotExited(string message) : base(message)
+            {
+            }
+
+            public ProcessHasNotExited(string message, Exception innerException) : base(message, innerException)
+            {
+            }
+
+            protected ProcessHasNotExited(SerializationInfo info, StreamingContext context) : base(info, context)
             {
             }
         }
