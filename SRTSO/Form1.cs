@@ -73,6 +73,14 @@ namespace SRTSO
             UpdateLabel(labelCPUTime, scheduler.CPUTotalTime.ToString());
             UpdateLabel(labelCPUBusy, scheduler.BussyTime.ToString());
             UpdateLabel(labelCPUIDLE, scheduler.IDLETime.ToString());
+            UpdateLabel(labelResponseMin, scheduler.MinResponseTime.ToString());
+            UpdateLabel(labelResponseMax, scheduler.MaxResponseTime.ToString());
+            if (scheduler.HasResponseTimes)
+            {
+                UpdateLabel(labelResponseMean, scheduler.MeanResponseTime.ToString());
+                UpdateLabel(labelResponseEstandardDeviation, scheduler.StandardDeviation.ToString());
+            }
+            
         }
         private delegate void SafeUpdateLabel(Label label, String text);
         private void UpdateLabel(Label label, string text)

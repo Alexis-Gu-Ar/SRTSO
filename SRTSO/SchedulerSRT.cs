@@ -18,10 +18,13 @@ namespace SRTSO
         private Stopwatch stopwatch;
         private Thread startThread;
         private int bussyTime;
+        private int maxResponseTime;
+        private List<int> responseTimes;
 
         public SchedulerSRT()
         {
             bussyTime = 0;
+            responseTimes = new List<int>();
             startThread = new Thread(Run);
             stopwatch = new Stopwatch();
             newProcesses = new List<MyProcess>();
@@ -40,6 +43,24 @@ namespace SRTSO
         public int BussyTime { get => bussyTime; }
         public double IDLETime { get => CPUTotalTime - BussyTime; }
         public bool HaveNewProcesses { get => newProcesses.Count > 0; }
+        public int MinResponseTime { get => 0; }
+        public int MaxResponseTime { get => maxResponseTime; }
+        public double MeanResponseTime { get => responseTimes.Sum() / responseTimes.Count; }
+
+        public double StandardDeviation
+        {
+            get
+            {
+                double standardDeviation = 0;
+                double mean = MeanResponseTime;
+                foreach (int responseTime in responseTimes)
+                    standardDeviation += Math.Pow(responseTime - mean, 2);
+
+                standardDeviation /= responseTimes.Count;
+                return Math.Sqrt(standardDeviation);
+            }
+        }
+        public bool HasResponseTimes { get => responseTimes.Count > 0; }
 
         public void AddRandomProcesses(int total)
         {
@@ -82,9 +103,22 @@ namespace SRTSO
 
         private void SetRunningProcess(MyProcess process)
         {
-            if (process != null && !process.HasBeenInCPU)
-                process.FirstTimeInCPU = stopwatch.ElapsedMilliseconds;
             runningProcess = process;
+            if (runningProcess != null && !runningProcess.HasBeenInCPU)
+            {
+                runningProcess.FirstTimeInCPU = stopwatch.ElapsedMilliseconds;
+                responseTimes.Add(runningProcess.ResponseTime);
+            }
+            UpdateMaxResponseTime();
+        }
+
+
+        private void UpdateMaxResponseTime()
+        {
+            if (runningProcess != null /*&& !runningProcess.HasBeenInCPU*/)
+            {
+                maxResponseTime = runningProcess.ResponseTime > maxResponseTime ? runningProcess.ResponseTime : maxResponseTime;
+            }
         }
 
         private MyProcess PopNewShortestProcess()
@@ -106,8 +140,7 @@ namespace SRTSO
             if(HasRunningProcess && process.PendingCpuExecutionTime < runningProcess.PendingCpuExecutionTime)
             {
                 newProcesses.Add(runningProcess);
-                process.FirstTimeInCPU = stopwatch.ElapsedMilliseconds;
-                runningProcess = process;
+                SetRunningProcess(process);
             }
             else newProcesses.Add(process);
 

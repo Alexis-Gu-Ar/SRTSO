@@ -2,6 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SRTSO;
 using System.Threading;
 using System.Collections.Generic;
+using System;
 
 namespace SRTTest
 {
@@ -264,6 +265,59 @@ namespace SRTTest
             StartWithRandomProcesses(2);
             SleepUntilCurrentProcessFinishes();
             Assert.AreNotEqual(0, scheduler.RunningProcess.ResponseTime);
+        }
+
+        [TestMethod]
+        public void MinResponseTimeShouldBeZeroWhenStaringWithOneProcess()
+        {
+            StartWithRandomProcesses(1);
+            Assert.AreEqual(0, scheduler.MinResponseTime);
+        }
+
+        [TestMethod]
+        public void MaxResponseTimeShouldBeZeroWhenStaringWithOneProcess()
+        {
+            StartWithRandomProcesses(1);
+            Assert.AreEqual(0, scheduler.MaxResponseTime);
+        }
+
+        [TestMethod]
+        public void MaxResponseTimeShouldBeGreaterThanZeroWhenStartingWithTwoProcesses()
+        {
+            StartWithRandomProcesses(2);
+            SleepUntilCurrentProcessFinishes();
+            Assert.IsTrue(0 < scheduler.MaxResponseTime);
+        }
+
+        [TestMethod]
+        public void MaxResponseTimeCanNotDeacrease()
+        {
+            StartWithProcessWithCpuExecutionOf(720, 1200);
+            SleepUntilCurrentProcessFinishes();
+            int prevMaxResponse = scheduler.MaxResponseTime;
+            AddAProcessWithCpuExecutionOf(720);
+            Assert.IsTrue(scheduler.MaxResponseTime >= prevMaxResponse);
+        }
+
+        [TestMethod]
+        public void ResponseMeanShouldBeZeroWhenStartingWithOneProcess()
+        {
+            StartWithRandomProcesses(1);
+            Assert.AreEqual(0, scheduler.MeanResponseTime);
+        }
+        
+        [TestMethod]
+        public void WhenSchedulerFinishTheResponseMeanShouldBeEqualToTheMeanOfAllTheProcess()
+        {
+            StartWithRandomProcesses(3);
+            MyProcess p1 = scheduler.RunningProcess;
+            MyProcess p2 = scheduler.NewProcesses[0];
+            MyProcess p3 = scheduler.NewProcesses[1];
+            for (int i = 0; i < 3; i++)
+                SleepUntilCurrentProcessFinishes();
+
+            double mean = (p1.ResponseTime + p2.ResponseTime + p3.ResponseTime) / 3;
+            Assert.AreEqual(mean, scheduler.MeanResponseTime);
         }
     }
 }
